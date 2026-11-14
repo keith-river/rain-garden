@@ -1,0 +1,21 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.~lock.*
+
+# 一時ファイル
+*.tmp
+*.bak
+
+# ビルドスクリプト（配布不要）
+make_slides.js
+node_modules/
+
+# スライド生成時の中間画像
+slide-*.jpg
+slide-*.png
+
+# ログ
+npm-debug.log*
