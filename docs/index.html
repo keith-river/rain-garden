@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>言葉で描く雨庭 ― Rain Garden Designer</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Hiragino Mincho ProN','Yu Mincho','Georgia',serif;background:#0a0d1a;color:#e8e0d0;height:100vh;overflow:hidden;user-select:none;}
+
+/* ─── Phase system ─── */
+.phase{display:none;width:100%;height:100vh;position:absolute;top:0;left:0;}
+.phase.active{display:flex;}
+
+/* ─── Title screen ─── */
+#phase-title{
+  flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  background:radial-gradient(ellipse at 50% 60%, #162240 0%, #080c18 70%);
+  overflow:hidden;
+}
+#phase-title::before{
+  content:'';position:absolute;inset:0;
+  background:url("data:image/svg+xml,%3Csvg width='400' height='400' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='50' cy='80' r='1' fill='%23ffffff22'/%3E%3Ccircle cx='150' cy='30' r='1.5' fill='%23ffffff1a'/%3E%3Ccircle cx='300' cy='120' r='1' fill='%23ffffff22'/%3E%3Ccircle cx='350' cy='50' r='2' fill='%23ffffff15'/%3E%3Ccircle cx='80' cy='200' r='1' fill='%23ffffff1a'/%3E%3Ccircle cx='250' cy='300' r='1.5' fill='%23ffffff22'/%3E%3Ccircle cx='380' cy='250' r='1' fill='%23ffffff1a'/%3E%3Ccircle cx='120' cy='350' r='2' fill='%23ffffff15'/%3E%3Ccircle cx='200' cy='150' r='1' fill='%23ffffff22'/%3E%3Ccircle cx='320' cy='380' r='1.5' fill='%23ffffff1a'/%3E%3C/svg%3E") repeat;
+  opacity:0.8;animation:twinkle 4s ease-in-out infinite alternate;
+}
+@keyframes twinkle{from{opacity:.5}to{opacity:1}}
+.title-inner{position:relative;z-index:1;}
+.title-emblem{font-size:56px;margin-bottom:16px;animation:float 3s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.title-main{font-size:clamp(32px,5vw,54px);font-weight:normal;letter-spacing:.1em;line-height:1.25;color:#f0ead8;}
+.title-accent{color:#8ecfb8;font-size:1.1em;}
+.title-sub{font-size:13px;letter-spacing:.25em;color:#9ab0b0;margin-top:8px;font-family:'Georgia',serif;}
+.title-divider{width:120px;height:1px;background:linear-gradient(90deg,transparent,#c8a45a,transparent);margin:24px auto;}
+.title-desc{font-size:15px;line-height:2;color:#c8c0a8;max-width:380px;}
+.btn-start{
+  margin-top:36px;padding:14px 44px;
+  border:1px solid #c8a45a;border-radius:3px;
+  background:transparent;color:#c8a45a;
+  font-size:16px;letter-spacing:.18em;cursor:pointer;
+  font-family:inherit;transition:all .3s;
+}
+.btn-start:hover{background:rgba(200,164,90,.12);box-shadow:0 0 20px rgba(200,164,90,.3);}
+.title-hint{font-size:11px;color:#5a6070;margin-top:16px;letter-spacing:.08em;}
+
+/* ─── Card screen ─── */
+#phase-cards{
+  background:linear-gradient(160deg,#0c1220 0%,#101828 50%,#0c1520 100%);
+  flex-direction:row;
+}
+.cards-sidebar{
+  width:220px;min-width:180px;padding:32px 20px;
+  border-right:1px solid rgba(200,164,90,.15);
+  display:flex;flex-direction:column;gap:16px;
+  background:rgba(0,0,0,.2);
+}
+.sidebar-title{font-size:11px;letter-spacing:.2em;color:#8a9090;margin-bottom:4px;}
+.selected-word-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border-radius:4px;
+  border:1px solid rgba(255,255,255,.06);
+  background:rgba(255,255,255,.03);
+  transition:all .4s;
+}
+.selected-word-item.filled{border-color:rgba(200,164,90,.3);background:rgba(200,164,90,.06);}
+.selected-turn{font-size:10px;color:#5a6a70;letter-spacing:.1em;min-width:20px;}
+.selected-word-val{font-size:15px;color:#d8c8a0;}
+.selected-word-empty{font-size:13px;color:#334050;}
+.sidebar-footer{margin-top:auto;}
+.progress-label{font-size:10px;color:#5a6070;letter-spacing:.1em;margin-bottom:8px;}
+.progress-track{height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,#4a9f8a,#c8a45a);border-radius:2px;transition:width .6s ease;}
+.turn-counter{font-size:12px;color:#8a9090;margin-top:8px;text-align:center;}
+
+.cards-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;}
+.turn-header{text-align:center;margin-bottom:40px;}
+.turn-label{font-size:11px;letter-spacing:.25em;color:#8a9090;margin-bottom:6px;}
+.turn-title{font-size:clamp(22px,3vw,30px);color:#f0ead8;margin-bottom:6px;}
+.turn-desc{font-size:13px;color:#8a9a90;letter-spacing:.06em;}
+
+.cards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;max-width:820px;width:100%;}
+@media(max-width:700px){.cards-grid{grid-template-columns:repeat(2,1fr);}}
+
+.card{
+  background:linear-gradient(155deg,#182038 0%,#0e1428 100%);
+  border:1px solid rgba(200,164,90,.3);
+  border-radius:10px;padding:28px 16px;
+  cursor:pointer;transition:all .28s cubic-bezier(.2,.8,.4,1);
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  position:relative;overflow:hidden;min-height:200px;justify-content:center;
+}
+.card::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(200,164,90,.05) 0%,transparent 60%);
+  opacity:0;transition:opacity .3s;
+}
+.card:hover{transform:translateY(-8px) scale(1.02);border-color:rgba(200,164,90,.7);box-shadow:0 20px 40px rgba(0,0,0,.5),0 0 20px rgba(200,164,90,.15);}
+.card:hover::before{opacity:1;}
+.card.selected{border-color:#c8a45a;background:linear-gradient(155deg,#1e2848,#141c38);box-shadow:0 0 30px rgba(200,164,90,.4),inset 0 0 20px rgba(200,164,90,.05);}
+.card.faded{opacity:.3;transform:scale(.96);pointer-events:none;}
+.card-symbol{font-size:48px;line-height:1;}
+.card-word{font-size:28px;color:#ede5d0;letter-spacing:.1em;}
+.card-desc{font-size:11px;color:rgba(180,160,110,.75);text-align:center;line-height:1.7;letter-spacing:.04em;}
+
+/* ─── Loading screen ─── */
+#phase-loading{
+  flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at center,#0f1a20 0%,#080c10 70%);
+  text-align:center;gap:20px;
+}
+.loading-icon{font-size:52px;animation:spin 2s linear infinite;}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.loading-text{font-size:18px;color:#8ecfb8;letter-spacing:.15em;}
+.loading-words{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin:8px 0;}
+.loading-word{
+  padding:6px 18px;border:1px solid rgba(142,207,184,.3);border-radius:20px;
+  font-size:14px;color:#8ecfb8;background:rgba(142,207,184,.06);
+  animation:fadeUp .5s ease forwards;opacity:0;
+}
+.loading-word:nth-child(1){animation-delay:.1s}
+.loading-word:nth-child(2){animation-delay:.3s}
+.loading-word:nth-child(3){animation-delay:.5s}
+.loading-word:nth-child(4){animation-delay:.7s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.loading-track{width:260px;height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;}
+.loading-bar-fill{height:100%;background:linear-gradient(90deg,#4a9f8a,#8ecfb8);border-radius:2px;width:0;transition:width .2s;}
+
+/* ─── Garden screen ─── */
+#phase-garden{flex-direction:column;}
+#garden-canvas{position:absolute;inset:0;width:100%;height:100%;}
+.garden-ui{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;}
+.garden-header{
+  padding:20px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;
+  gap:16px;flex-wrap:wrap;
+}
+.garden-title{font-size:18px;color:#f0ead8;text-shadow:0 1px 6px rgba(0,0,0,.8);}
+.garden-words{display:flex;gap:8px;flex-wrap:wrap;}
+.garden-word-badge{
+  padding:5px 14px;background:rgba(0,0,0,.55);border:1px solid rgba(200,164,90,.4);
+  border-radius:20px;font-size:13px;color:#d8c090;backdrop-filter:blur(6px);
+}
+.garden-controls-hint{
+  display:flex;gap:20px;padding:0 24px;font-size:11px;color:rgba(200,200,200,.5);
+  text-shadow:0 1px 4px rgba(0,0,0,.8);margin-top:8px;flex-wrap:wrap;
+}
+.garden-bottom{
+  margin-top:auto;padding:16px 24px;display:flex;
+  justify-content:space-between;align-items:flex-end;pointer-events:auto;
+  flex-wrap:wrap;gap:12px;
+}
+.rain-info{
+  background:rgba(8,16,24,.75);border:1px solid rgba(142,207,184,.25);
+  border-radius:8px;padding:14px 18px;max-width:300px;backdrop-filter:blur(8px);
+  pointer-events:auto;
+}
+.rain-info h3{font-size:13px;color:#8ecfb8;margin-bottom:6px;letter-spacing:.08em;}
+.rain-info p{font-size:11px;color:#8a9898;line-height:1.7;}
+.btn-restart{
+  padding:10px 28px;border:1px solid rgba(200,164,90,.5);border-radius:4px;
+  background:rgba(0,0,0,.6);color:#c8a45a;font-size:13px;
+  cursor:pointer;font-family:inherit;letter-spacing:.12em;
+  backdrop-filter:blur(6px);transition:all .25s;pointer-events:auto;
+}
+.btn-restart:hover{background:rgba(200,164,90,.15);border-color:#c8a45a;}
+
+/* ─── Edit mode ─── */
+.btn-edit-mode{
+  padding:9px 20px;border:1px solid rgba(142,207,184,.5);border-radius:20px;
+  background:rgba(0,0,0,.65);color:#8ecfb8;font-size:13px;
+  cursor:pointer;font-family:inherit;letter-spacing:.08em;
+  backdrop-filter:blur(6px);transition:all .25s;pointer-events:auto;
+}
+.btn-edit-mode:hover{background:rgba(142,207,184,.12);border-color:#8ecfb8;}
+.btn-edit-mode.edit-active{
+  background:rgba(210,230,60,.14);border-color:rgba(210,230,80,.7);color:#d8e855;
+}
+.edit-badge{
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  background:rgba(190,210,50,.92);color:#141e06;
+  padding:4px 18px;border-radius:12px;font-size:11px;font-weight:bold;
+  letter-spacing:.12em;pointer-events:none;display:none;z-index:20;
+  white-space:nowrap;
+}
+.edit-badge.visible{display:block;}
+.sel-info{
+  position:absolute;bottom:116px;left:50%;transform:translateX(-50%);
+  background:rgba(8,14,22,.9);border:1px solid rgba(210,230,60,.45);
+  border-radius:10px;padding:10px 20px;pointer-events:none;
+  display:none;z-index:20;backdrop-filter:blur(10px);text-align:center;
+  white-space:nowrap;min-width:260px;
+}
+.sel-info.visible{display:block;}
+.sel-info .si-name{font-size:16px;color:#f0ead8;font-weight:bold;margin-bottom:5px;}
+.sel-info .si-hint{font-size:11px;color:#7a9a80;line-height:1.8;}
+.sel-info .si-word{font-size:11px;color:#c8a45a;margin-bottom:3px;}
+
+/* ─── Tooltip ─── */
+#tooltip{
+  position:fixed;display:none;z-index:100;
+  background:rgba(8,14,22,.92);border:1px solid rgba(142,207,184,.35);
+  border-radius:8px;padding:12px 16px;max-width:240px;pointer-events:none;
+  backdrop-filter:blur(10px);box-shadow:0 8px 24px rgba(0,0,0,.6);
+}
+.tt-name{font-size:15px;color:#e8e0d0;margin-bottom:4px;}
+.tt-word{font-size:11px;color:#c8a45a;margin-bottom:6px;letter-spacing:.06em;}
+.tt-func{font-size:11px;color:#7ab0a0;line-height:1.6;}
+</style>
+</head>
+<body>
+
+<!-- ① Title -->
+<div id="phase-title" class="phase active">
+  <div class="title-inner">
+    <div class="title-emblem">🌿</div>
+    <h1 class="title-main">言葉で描く<br><span class="title-accent">雨庭</span></h1>
+    <p class="title-sub">Rain Garden Designer</p>
+    <div class="title-divider"></div>
+    <p class="title-desc">
+      ゲリラ豪雨から街を守る「雨庭」。<br>
+      あなたが選ぶ4つの言葉が、<br>
+      オリジナルの雨庭デザインを生み出します。
+    </p>
+    <button class="btn-start" onclick="startGame()">は じ め る</button>
+    <p class="title-hint">タロットカードのように、直感で選んでください</p>
+  </div>
+</div>
+
+<!-- ② Card selection -->
+<div id="phase-cards" class="phase">
+  <div class="cards-sidebar">
+    <div>
+      <div class="sidebar-title">あなたの選択</div>
+      <div id="selected-words-list" style="display:flex;flex-direction:column;gap:8px;margin-top:12px;"></div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="progress-label">進 行</div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <div class="turn-counter">ターン <span id="turn-num">1</span> / 4</div>
+    </div>
+  </div>
+  <div class="cards-main">
+    <div class="turn-header">
+      <div class="turn-label" id="turn-label"></div>
+      <div class="turn-title" id="turn-title"></div>
+      <div class="turn-desc" id="turn-desc"></div>
+    </div>
+    <div class="cards-grid" id="cards-grid"></div>
+  </div>
+</div>
+
+<!-- ③ Loading -->
+<div id="phase-loading" class="phase">
+  <div class="loading-icon">☘️</div>
+  <div class="loading-text">雨庭を設計しています...</div>
+  <div class="loading-words" id="loading-words"></div>
+  <div class="loading-track"><div class="loading-bar-fill" id="loading-bar"></div></div>
+</div>
+
+<!-- ④ Garden -->
+<div id="phase-garden" class="phase">
+  <canvas id="garden-canvas"></canvas>
+  <div class="edit-badge" id="edit-badge">✏ 編集モード</div>
+  <div class="sel-info" id="sel-info">
+    <div class="si-name" id="si-name"></div>
+    <div class="si-word" id="si-word"></div>
+    <div class="si-hint">ドラッグ：移動 ／ ⬤ 白いハンドルをドラッグ：リサイズ ／ 空白クリック：解除</div>
+  </div>
+  <div class="garden-ui">
+    <div class="garden-header">
+      <div>
+        <div class="garden-title">🌿 あなたの雨庭</div>
+        <div style="margin-top:6px;" id="controls-hint" class="garden-controls-hint">
+          <span>🖱 ドラッグで視点回転</span>
+          <span>⚙ スクロールでズーム</span>
+          <span>📌 部材ホバーで解説</span>
+        </div>
+      </div>
+      <div id="garden-words" class="garden-words"></div>
+    </div>
+    <div class="garden-bottom">
+      <div class="rain-info">
+        <h3>🌧 雨庭とは</h3>
+        <p>ゲリラ豪雨による冠水を防ぐため、庭に設ける浅いくぼ地。雨水を一時的に貯め、ゆっくりと地下へ浸透させる、自然に寄り添うデザインです。</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;pointer-events:auto;">
+        <button class="btn-edit-mode" id="btn-edit" onclick="toggleEditMode()">✏ 配置を編集</button>
+        <button class="btn-restart" onclick="restartGame()">もう一度</button>
+      </div>
+    </div>
+  </div>
+  <div id="tooltip">
+    <div class="tt-name" id="tt-name"></div>
+    <div class="tt-word" id="tt-word"></div>
+    <div class="tt-func" id="tt-func"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════
+const TURNS = [
+  {
+    label:'第1ターン', title:'タロットの言葉',
+    desc:'心に響くカードを1枚、直感で選んでください',
+    cards:[
+      {word:'月',  symbol:'🌙', desc:'神秘・直感・深層の水'},
+      {word:'星',  symbol:'⭐', desc:'希望・解放・輝く野原'},
+      {word:'太陽',symbol:'☀️', desc:'活力・喜び・萌ゆる緑'},
+      {word:'塔',  symbol:'🏯', desc:'変革・強さ・揺るぎない石'},
+    ]
+  },
+  {
+    label:'第2ターン', title:'色の言葉',
+    desc:'庭に宿る色を選んでください',
+    cards:[
+      {word:'青',  symbol:'💧', desc:'静けさ・涼しさ・深い水'},
+      {word:'緑',  symbol:'🍃', desc:'生命・自然・みどりの調和'},
+      {word:'白',  symbol:'🪨', desc:'純粋・清澄・石の余白'},
+      {word:'橙',  symbol:'🍂', desc:'温もり・活気・秋の彩り'},
+    ]
+  },
+  {
+    label:'第3ターン', title:'動物の言葉',
+    desc:'庭に招く命を選んでください',
+    cards:[
+      {word:'鹿',  symbol:'🦌', desc:'日本の雅・森の使者'},
+      {word:'魚',  symbol:'🐟', desc:'水・豊穣・命の流れ'},
+      {word:'鷹',  symbol:'🦅', desc:'空・眺望・高貴な佇まい'},
+      {word:'蝶',  symbol:'🦋', desc:'変容・軽やかさ・花を結ぶ'},
+    ]
+  },
+  {
+    label:'第4ターン', title:'植物の言葉',
+    desc:'庭に生きる草木を選んでください',
+    cards:[
+      {word:'松',  symbol:'🌲', desc:'長寿・不変・凛とした美'},
+      {word:'竹',  symbol:'🎋', desc:'清廉・しなやか・節の強さ'},
+      {word:'桜',  symbol:'🌸', desc:'儚さ・美しさ・移ろいの色'},
+      {word:'苔',  symbol:'🌿', desc:'侘び・寂び・しずかな静寂'},
+    ]
+  },
+];
+
+// word → element scores
+const MAPPING = {
+  '月': {pond:3,stone:2,shrub:1,grass:1},
+  '星': {grass:3,shrub:3,stone:1},
+  '太陽':{deciduous:3,grass:2,shrub:1},
+  '塔': {pine:2,stone:4,grass:1},
+  '青': {pond:4,stone:2,grass:1},
+  '緑': {grass:3,shrub:3,deciduous:1},
+  '白': {stone:4,bonsai:2,grass:1},
+  '橙': {deciduous:3,shrub:2,grass:1},
+  '鹿': {shishi:3,stone:2,pine:1},
+  '魚': {pond:5,stone:1,grass:1},
+  '鷹': {pine:3,stone:2,grass:1},
+  '蝶': {shrub:4,grass:2,deciduous:1},
+  '松': {pine:4,stone:2,grass:1},
+  '竹': {shishi:3,shrub:2,grass:1},
+  '桜': {deciduous:4,grass:2,shrub:1},
+  '苔': {stone:3,bonsai:3,grass:1},
+};
+
+const ELEM_INFO = {
+  pond:      {name:'池',       fn:'雨水を一時貯留し、ゆっくり地下へ浸透させます'},
+  stone:     {name:'石',       fn:'水の流れを制御し、土壌侵食を防ぐ雨庭の骨格です'},
+  pine:      {name:'松（常緑樹）',fn:'年間を通じた蒸発散で水循環を助けます'},
+  deciduous: {name:'広葉樹',   fn:'夏の葉が雨を遮断し、蒸発散を促進します'},
+  shrub:     {name:'低木',     fn:'根が土壌を改良し、雨水浸透を促進します'},
+  bonsai:    {name:'盆栽',     fn:'土壌の水分保持と審美的な空間づくりを担います'},
+  shishi:    {name:'鹿威し',   fn:'水の流れを演出し、雨水循環を視覚化します'},
+};
+
+const POS_POOL = {
+  pine:      [[-2.7,0,-1.7],[2.5,0,-2.0],[-1.8,0,-2.4]],
+  deciduous: [[2.7,0,-1.6],[-3.0,0,-1.9],[3.1,0,0.1]],
+  shrub:     [[-3.1,0,0.6],[3.1,0,0.4],[-3.0,0,1.9],[3.0,0,1.7],[-1.8,0,2.7],[2.0,0,2.7]],
+  stone:     [[-1.2,0.02,0.3],[1.4,0.02,0.2],[-0.7,0.02,-0.9],[0.9,0.02,-0.8],[-1.6,0.02,0.9],[1.7,0.02,0.8]],
+  pond:      [[0,0,0.2]],
+  shishi:    [[0.65,0,0.45]],
+  bonsai:    [[-1.1,0.02,0.9],[1.3,0.02,0.7]],
+};
+
+const CAPS = {pond:1,stone:6,pine:3,deciduous:2,shrub:6,bonsai:2,shishi:1};
+
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+let currentTurn=0, selectedCards=[], elementScores={};
+let scene,camera,renderer,raycaster,mouse;
+let gardenGroups=[], hoveredGroup=null;
+let isDragging=false, prevMX=0, prevMY=0;
+let prevPinchDist=0;
+let sph={theta:0.45,phi:1.0,radius:11.5};
+let animFrame=null;
+
+// ── Edit mode state ──
+let editMode=false;
+let selectedGroup=null;
+let selRing=null, resHandle=null;
+let isDraggingObj=false, isDraggingHandle=false;
+const dragOffset=new THREE.Vector3();
+let resizeStartX=0, resizeStartScale=1;
+const groundPl=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+const BOUNDS={xMin:-4.5,xMax:4.5,zMin:-3.5,zMax:3.8};
+
+// ═══════════════════════════════════════════════
+//  PHASE
+// ═══════════════════════════════════════════════
+function showPhase(id){
+  document.querySelectorAll('.phase').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function startGame(){
+  currentTurn=0;selectedCards=[];elementScores={};
+  showPhase('phase-cards');
+  renderTurn();
+}
+function restartGame(){
+  if(animFrame){cancelAnimationFrame(animFrame);animFrame=null;}
+  if(renderer){renderer.dispose();renderer=null;}
+  scene=null;gardenGroups=[];hoveredGroup=null;
+  // reset edit mode
+  selRing=null;resHandle=null;selectedGroup=null;
+  isDraggingObj=false;isDraggingHandle=false;
+  if(editMode){
+    editMode=false;
+    const btn=document.getElementById('btn-edit');
+    const badge=document.getElementById('edit-badge');
+    if(btn){btn.textContent='✏ 配置を編集';btn.classList.remove('edit-active');}
+    if(badge)badge.classList.remove('visible');
+  }
+  document.getElementById('sel-info').classList.remove('visible');
+  startGame();
+}
+
+// ═══════════════════════════════════════════════
+//  CARD UI
+// ═══════════════════════════════════════════════
+function renderTurn(){
+  const t=TURNS[currentTurn];
+  document.getElementById('turn-label').textContent=t.label;
+  document.getElementById('turn-title').textContent=t.title;
+  document.getElementById('turn-desc').textContent=t.desc;
+  document.getElementById('turn-num').textContent=currentTurn+1;
+  document.getElementById('progress-fill').style.width=(currentTurn/4*100)+'%';
+  renderSidebar();
+  // cards
+  const grid=document.getElementById('cards-grid');
+  grid.innerHTML='';
+  t.cards.forEach(card=>{
+    const el=document.createElement('div');
+    el.className='card';
+    el.innerHTML=`<div class="card-symbol">${card.symbol}</div><div class="card-word">${card.word}</div><div class="card-desc">${card.desc}</div>`;
+    el.addEventListener('click',()=>selectCard(card,el));
+    grid.appendChild(el);
+  });
+}
+function renderSidebar(){
+  const list=document.getElementById('selected-words-list');
+  list.innerHTML='';
+  for(let i=0;i<4;i++){
+    const div=document.createElement('div');
+    if(i<selectedCards.length){
+      const c=selectedCards[i];
+      div.className='selected-word-item filled';
+      div.innerHTML=`<span class="selected-turn">T${i+1}</span><span class="selected-word-val">${c.symbol} ${c.word}</span>`;
+    } else {
+      div.className='selected-word-item';
+      div.innerHTML=`<span class="selected-turn">T${i+1}</span><span class="selected-word-empty">―</span>`;
+    }
+    list.appendChild(div);
+  }
+}
+function selectCard(card,el){
+  // lock clicks
+  document.querySelectorAll('.card').forEach(c=>c.style.pointerEvents='none');
+  document.querySelectorAll('.card').forEach(c=>c.classList.add('faded'));
+  el.classList.remove('faded');el.classList.add('selected');
+
+  selectedCards.push(card);
+  const m=MAPPING[card.word]||{};
+  Object.entries(m).forEach(([k,v])=>{elementScores[k]=(elementScores[k]||0)+v;});
+
+  setTimeout(()=>{
+    currentTurn++;
+    if(currentTurn<4){renderTurn();}
+    else{showLoading();}
+  },650);
+}
+
+// ═══════════════════════════════════════════════
+//  LOADING
+// ═══════════════════════════════════════════════
+function showLoading(){
+  showPhase('phase-loading');
+  const wEl=document.getElementById('loading-words');
+  wEl.innerHTML=selectedCards.map(c=>`<span class="loading-word">${c.symbol} ${c.word}</span>`).join('');
+  let p=0;
+  const barEl=document.getElementById('loading-bar');
+  const iv=setInterval(()=>{
+    p+=Math.random()*18+5;
+    if(p>=100){p=100;clearInterval(iv);}
+    barEl.style.width=p+'%';
+  },120);
+  setTimeout(()=>{showPhase('phase-garden');initGarden();},2400);
+}
+
+// ═══════════════════════════════════════════════
+//  THREE.JS INIT
+// ═══════════════════════════════════════════════
+function initGarden(){
+  const canvas=document.getElementById('garden-canvas');
+  const W=canvas.offsetWidth, H=canvas.offsetHeight;
+
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x9abfd0);
+  scene.fog=new THREE.Fog(0x9abfd0,14,28);
+
+  camera=new THREE.PerspectiveCamera(48,W/H,0.1,80);
+  updateCam();
+
+  renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(W,H);
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+
+  // Lights
+  const amb=new THREE.AmbientLight(0xfff8f0,0.65);
+  scene.add(amb);
+  const sun=new THREE.DirectionalLight(0xfff5e0,1.2);
+  sun.position.set(6,10,5);sun.castShadow=true;
+  sun.shadow.mapSize.width=1024;sun.shadow.mapSize.height=1024;
+  sun.shadow.camera.near=0.5;sun.shadow.camera.far=40;
+  sun.shadow.camera.left=-8;sun.shadow.camera.right=8;
+  sun.shadow.camera.top=8;sun.shadow.camera.bottom=-8;
+  scene.add(sun);
+  const fill=new THREE.DirectionalLight(0xc8e0ff,0.3);
+  fill.position.set(-4,3,-5);scene.add(fill);
+
+  raycaster=new THREE.Raycaster();
+  mouse=new THREE.Vector2();
+
+  buildGarden();
+  renderGardenUI();
+  setupInteraction(canvas);
+  window.addEventListener('resize',()=>{
+    const cw=canvas.offsetWidth,ch=canvas.offsetHeight;
+    camera.aspect=cw/ch;camera.updateProjectionMatrix();
+    renderer.setSize(cw,ch);
+  });
+  loop();
+}
+
+function updateCam(){
+  if(!camera)return;
+  camera.position.set(
+    sph.radius*Math.sin(sph.phi)*Math.sin(sph.theta),
+    sph.radius*Math.cos(sph.phi),
+    sph.radius*Math.sin(sph.phi)*Math.cos(sph.theta)
+  );
+  camera.lookAt(0,0.4,0);
+}
+
+// ═══════════════════════════════════════════════
+//  GARDEN BUILDER
+// ═══════════════════════════════════════════════
+function buildGarden(){
+  // Ground
+  const gnd=new THREE.Mesh(
+    new THREE.PlaneGeometry(12,9),
+    new THREE.MeshLambertMaterial({color:0x7a9060})
+  );
+  gnd.rotation.x=-Math.PI/2;gnd.receiveShadow=true;scene.add(gnd);
+
+  // Basin depression
+  const basin=new THREE.Mesh(
+    new THREE.PlaneGeometry(3.8,2.8),
+    new THREE.MeshLambertMaterial({color:0x5e7248})
+  );
+  basin.rotation.x=-Math.PI/2;basin.position.set(0,-0.02,0.3);basin.receiveShadow=true;scene.add(basin);
+
+  // Basin rim stones (always present – they define the rain garden)
+  const rimPts=[
+    [-1.95,0,-1.1],[-1.3,0,-1.45],[-0.55,0,-1.55],[0.2,0,-1.55],[0.9,0,-1.45],[1.55,0,-1.1],[1.95,0,-0.6],
+    [1.95,0,0.2],[1.65,0,0.9],[1.1,0,1.35],[0.35,0,1.55],[-0.4,0,1.55],[-1.05,0,1.3],[-1.6,0,0.85],
+    [-1.95,0,0.2],[-1.95,0,-0.5],
+  ];
+  rimPts.forEach(p=>{
+    const s=makeEdgeStone();s.position.set(p[0],p[1]+0.02,p[2]+0.3);scene.add(s);
+  });
+
+  // Stepping-stone path (front entrance)
+  [[0.05,0,2.8],[0.1,0,2.15],[0,0,1.65]].forEach(p=>{
+    const sg=new THREE.CylinderGeometry(0.18,0.18,0.04,8);
+    const sm=new THREE.MeshLambertMaterial({color:0x9a9080});
+    const step=new THREE.Mesh(sg,sm);step.position.set(...p);step.position.y=0.02;
+    step.receiveShadow=true;scene.add(step);
+  });
+
+  // Fence posts (subtle border)
+  const postMat=new THREE.MeshLambertMaterial({color:0x7a5c20});
+  const postGeo=new THREE.CylinderGeometry(0.025,0.025,0.55,5);
+  [[-5,0,-3.5],[-3.5,0,-3.8],[-2,0,-4.0],[-0.5,0,-4.0],[1,0,-4.0],[2.5,0,-3.8],[4,0,-3.5],[5.5,0,-3.0],
+   [5.8,0,-1.5],[5.8,0,0],[5.8,0,1.5],[5.8,0,3.0],
+   [-5.8,0,-2.0],[-5.8,0,-0.5],[-5.8,0,1.0],[-5.8,0,2.5]
+  ].forEach(p=>{
+    const post=new THREE.Mesh(postGeo,postMat);
+    post.position.set(p[0],0.28,p[2]);scene.add(post);
+  });
+
+  // Compute counts
+  const counts={};
+  Object.entries(elementScores).forEach(([k,v])=>{
+    const cap=CAPS[k]||3;
+    counts[k]=Math.min(Math.max(0,Math.floor(v/2.5)),cap);
+  });
+
+  // Place garden elements
+  Object.entries(POS_POOL).forEach(([type,positions])=>{
+    const n=counts[type]||0;
+    if(n===0)return;
+    const word=wordForType(type);
+    for(let i=0;i<Math.min(n,positions.length);i++){
+      const obj=makeElement(type,word);
+      if(!obj)return;
+      obj.position.set(positions[i][0],positions[i][1],positions[i][2]);
+      scene.add(obj);
+      gardenGroups.push(obj);
+    }
+  });
+}
+
+function wordForType(type){
+  for(const c of selectedCards){
+    const m=MAPPING[c.word]||{};
+    if(m[type])return c.word;
+  }
+  return '';
+}
+
+function markHoverable(group,type,word){
+  const info=ELEM_INFO[type]||{name:type,fn:''};
+  group.userData={type,word,name:info.name,fn:info.fn,hoverable:true};
+  group.traverse(ch=>{if(ch.isMesh)ch.userData.parentGroup=group;});
+  return group;
+}
+
+// ═══════════════════════════════════════════════
+//  ELEMENT CREATORS
+// ═══════════════════════════════════════════════
+function makeEdgeStone(){
+  const r=0.05+Math.random()*0.04;
+  const g=new THREE.SphereGeometry(r,6,4);
+  g.applyMatrix4(new THREE.Matrix4().makeScale(1.3,0.55,1.0));
+  return new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:0x8a8278}));
+}
+
+function makeElement(type,word){
+  switch(type){
+    case'stone':    return makeStone(word);
+    case'pine':     return makePine(word);
+    case'deciduous':return makeDeciduous(word);
+    case'shrub':    return makeShrub(word);
+    case'pond':     return makePond(word);
+    case'shishi':   return makeShishi(word);
+    case'bonsai':   return makeBonsai(word);
+  }
+  return null;
+}
+
+function makeStone(word){
+  const g=new THREE.Group();
+  const sz=0.13+Math.random()*0.11;
+  const geo=new THREE.SphereGeometry(sz,7,5);
+  geo.applyMatrix4(new THREE.Matrix4().makeScale(1.35,0.62,1.05));
+  const hue=0.07+Math.random()*0.05;
+  const mesh=new THREE.Mesh(geo,new THREE.MeshPhongMaterial({color:new THREE.Color().setHSL(hue,0.1,0.44),shininess:15}));
+  mesh.castShadow=true;mesh.receiveShadow=true;g.add(mesh);
+  return markHoverable(g,'stone',word);
+}
+
+function makePine(word){
+  const g=new THREE.Group();
+  const tm=new THREE.MeshPhongMaterial({color:0x5c3d2a});
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.075,0.72,8),tm);
+  trunk.position.y=0.36;trunk.castShadow=true;g.add(trunk);
+  const layers=[[0.44,0.46,0.62],[0.34,0.4,0.88],[0.23,0.32,1.1]];
+  const clrs=[0x2e5e2a,0x234e1e,0x3a6b31];
+  layers.forEach(([r,h,y],i)=>{
+    const cone=new THREE.Mesh(
+      new THREE.ConeGeometry(r,h,8),
+      new THREE.MeshPhongMaterial({color:clrs[i],shininess:5})
+    );
+    cone.position.y=y;cone.castShadow=true;g.add(cone);
+  });
+  return markHoverable(g,'pine',word);
+}
+
+function makeDeciduous(word){
+  const g=new THREE.Group();
+  const trunk=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.055,0.095,0.88,8),
+    new THREE.MeshPhongMaterial({color:0x6b4b2e})
+  );
+  trunk.position.y=0.44;trunk.castShadow=true;g.add(trunk);
+  const canopy=new THREE.Mesh(
+    new THREE.SphereGeometry(0.52,10,8),
+    new THREE.MeshPhongMaterial({color:0x4e8f3c,shininess:8})
+  );
+  canopy.scale.set(1,0.82,1);canopy.position.y=1.18;canopy.castShadow=true;g.add(canopy);
+  return markHoverable(g,'deciduous',word);
+}
+
+function makeShrub(word){
+  const g=new THREE.Group();
+  const m=new THREE.MeshPhongMaterial({color:0x4e7e35,shininess:4});
+  [[0,0.22,0,0.26],[-0.16,0.16,0.11,0.19],[0.17,0.14,-0.12,0.17]].forEach(([x,y,z,r])=>{
+    const mesh=new THREE.Mesh(new THREE.SphereGeometry(r,8,6),m);
+    mesh.position.set(x,y,z);mesh.castShadow=true;g.add(mesh);
+  });
+  return markHoverable(g,'shrub',word);
+}
+
+function makePond(word){
+  const g=new THREE.Group();
+  const water=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.88,0.88,0.05,20),
+    new THREE.MeshPhongMaterial({color:0x3d7ab5,transparent:true,opacity:0.82,shininess:120,specular:new THREE.Color(0xaaccff)})
+  );
+  water.receiveShadow=true;g.add(water);
+  const edge=new THREE.Mesh(
+    new THREE.TorusGeometry(0.9,0.045,6,20),
+    new THREE.MeshLambertMaterial({color:0x7a7060})
+  );
+  edge.rotation.x=Math.PI/2;edge.position.y=0.02;g.add(edge);
+  return markHoverable(g,'pond',word);
+}
+
+function makeShishi(word){
+  const g=new THREE.Group();
+  const bm=new THREE.MeshPhongMaterial({color:0x888072});
+  const pm=new THREE.MeshPhongMaterial({color:0x90b05a});
+  // base
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.17,0.14,7),bm);
+  base.position.y=0.07;g.add(base);
+  // vertical bamboo
+  const vert=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.78,7),pm);
+  vert.position.y=0.53;g.add(vert);
+  // horizontal bamboo (rocking part – animated)
+  const horiz=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.58,7),pm.clone());
+  horiz.name='shishiArm';
+  horiz.rotation.z=Math.PI/2-0.28;horiz.position.set(0.15,0.82,0);g.add(horiz);
+  // water stream
+  const stream=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.012,0.012,0.38,5),
+    new THREE.MeshPhongMaterial({color:0x60a0d4,transparent:true,opacity:0.6})
+  );
+  stream.rotation.z=0.78;stream.position.set(-0.19,0.52,0);g.add(stream);
+  return markHoverable(g,'shishi',word);
+}
+
+function makeBonsai(word){
+  const g=new THREE.Group();
+  // pot
+  const pot=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.10,0.11,8),new THREE.MeshPhongMaterial({color:0xa0522d,shininess:35}));
+  pot.position.y=0.055;pot.castShadow=true;g.add(pot);
+  // soil
+  const soil=new THREE.Mesh(new THREE.CylinderGeometry(0.115,0.115,0.02,8),new THREE.MeshLambertMaterial({color:0x4e3018}));
+  soil.position.y=0.11;g.add(soil);
+  // trunk
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.016,0.026,0.26,6),new THREE.MeshPhongMaterial({color:0x5c3a2a}));
+  trunk.position.y=0.24;trunk.rotation.z=0.12;trunk.castShadow=true;g.add(trunk);
+  // canopy
+  const canopy=new THREE.Mesh(new THREE.SphereGeometry(0.15,8,6),new THREE.MeshPhongMaterial({color:0x2e5c28,shininess:5}));
+  canopy.scale.set(1,0.72,1);canopy.position.y=0.43;canopy.castShadow=true;g.add(canopy);
+  return markHoverable(g,'bonsai',word);
+}
+
+// ═══════════════════════════════════════════════
+//  GARDEN UI
+// ═══════════════════════════════════════════════
+function renderGardenUI(){
+  const el=document.getElementById('garden-words');
+  el.innerHTML=selectedCards.map(c=>`<span class="garden-word-badge">${c.symbol} ${c.word}</span>`).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  EDIT MODE
+// ═══════════════════════════════════════════════
+function toggleEditMode(){
+  editMode=!editMode;
+  const btn=document.getElementById('btn-edit');
+  const badge=document.getElementById('edit-badge');
+  const hint=document.getElementById('controls-hint');
+  if(editMode){
+    btn.textContent='👁 鑑賞モードへ';
+    btn.classList.add('edit-active');
+    badge.classList.add('visible');
+    hint.innerHTML='<span>クリック：選択</span><span>ドラッグ：移動</span><span>⬤ハンドル：リサイズ</span>';
+    clearHover();hideTooltip();
+  } else {
+    btn.textContent='✏ 配置を編集';
+    btn.classList.remove('edit-active');
+    badge.classList.remove('visible');
+    hint.innerHTML='<span>🖱 ドラッグで視点回転</span><span>⚙ スクロールでズーム</span><span>📌 部材ホバーで解説</span>';
+    deselect();
+  }
+}
+
+function selectObj(group){
+  if(selectedGroup===group)return;
+  deselect();
+  selectedGroup=group;
+  // Selection ring (circle line under object)
+  const pts=[];
+  for(let i=0;i<=64;i++){const a=i/64*Math.PI*2;pts.push(new THREE.Vector3(Math.cos(a),0,Math.sin(a)));}
+  selRing=new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({color:0xddcc44,linewidth:2})
+  );
+  selRing.position.copy(group.position);selRing.position.y=0.06;
+  scene.add(selRing);
+  // Resize handle (white sphere + connecting line)
+  resHandle=new THREE.Mesh(
+    new THREE.SphereGeometry(0.13,10,8),
+    new THREE.MeshBasicMaterial({color:0xffffff})
+  );
+  resHandle.userData.isResizeHandle=true;
+  scene.add(resHandle);
+  updateHandles();
+  // Info panel
+  const info=group.userData;
+  document.getElementById('si-name').textContent=info.name||'';
+  document.getElementById('si-word').textContent=info.word?'「'+info.word+'」から生まれた':'';
+  document.getElementById('sel-info').classList.add('visible');
+}
+
+function deselect(){
+  if(selRing){scene.remove(selRing);selRing=null;}
+  if(resHandle){scene.remove(resHandle);resHandle=null;}
+  if(selectedGroup){resetHL(selectedGroup);}
+  selectedGroup=null;
+  document.getElementById('sel-info').classList.remove('visible');
+}
+
+function updateHandles(){
+  if(!selectedGroup||!selRing||!resHandle)return;
+  const bb=new THREE.Box3().setFromObject(selectedGroup);
+  const sz=bb.getSize(new THREE.Vector3());
+  // Box3 already accounts for world-space scale; no need to multiply again
+  const r=Math.max(sz.x,sz.z)/2+0.22;
+  selRing.scale.set(r,1,r);
+  selRing.position.set(selectedGroup.position.x,0.06,selectedGroup.position.z);
+  resHandle.position.set(selectedGroup.position.x+r+0.16,0.22,selectedGroup.position.z);
+}
+
+// ═══════════════════════════════════════════════
+//  INTERACTION
+// ═══════════════════════════════════════════════
+function updateMouse(e,canvas){
+  const r=canvas.getBoundingClientRect();
+  mouse.x=((e.clientX-r.left)/r.width)*2-1;
+  mouse.y=-((e.clientY-r.top)/r.height)*2+1;
+}
+function groundPoint(){
+  const pt=new THREE.Vector3();
+  raycaster.setFromCamera(mouse,camera);
+  raycaster.ray.intersectPlane(groundPl,pt);
+  return pt;
+}
+function gardenMeshes(){
+  const m=[];
+  gardenGroups.forEach(g=>g.traverse(c=>{if(c.isMesh)m.push(c);}));
+  return m;
+}
+
+function setupInteraction(canvas){
+  // ── MOUSE DOWN ──
+  canvas.addEventListener('mousedown',e=>{
+    updateMouse(e,canvas);
+    prevMX=e.clientX;prevMY=e.clientY;
+    if(editMode){
+      raycaster.setFromCamera(mouse,camera);
+      // 1. Check resize handle first
+      if(resHandle){
+        const h=raycaster.intersectObject(resHandle);
+        if(h.length>0){isDraggingHandle=true;resizeStartX=e.clientX;resizeStartScale=selectedGroup?selectedGroup.scale.x:1;return;}
+      }
+      // 2. Check garden objects
+      const hits=raycaster.intersectObjects(gardenMeshes());
+      if(hits.length>0){
+        const pg=hits[0].object.userData.parentGroup;
+        if(pg&&pg.userData.hoverable){
+          selectObj(pg);
+          isDraggingObj=true;
+          const pt=groundPoint();
+          dragOffset.set(pg.position.x-pt.x,0,pg.position.z-pt.z);
+          canvas.style.cursor='grabbing';
+          return;
+        }
+      }
+      // 3. Empty space → deselect
+      deselect();
+    } else {
+      isDragging=true;
+    }
+  });
+
+  // ── MOUSE UP ──
+  canvas.addEventListener('mouseup',()=>{
+    isDragging=false;isDraggingObj=false;isDraggingHandle=false;
+    canvas.style.cursor=editMode?'default':'default';
+  });
+  canvas.addEventListener('mouseleave',()=>{
+    isDragging=false;isDraggingObj=false;isDraggingHandle=false;
+    hideTooltip();canvas.style.cursor='default';
+  });
+
+  // ── MOUSE MOVE ──
+  canvas.addEventListener('mousemove',e=>{
+    updateMouse(e,canvas);
+    if(editMode){
+      if(isDraggingObj&&selectedGroup){
+        const pt=groundPoint();
+        selectedGroup.position.x=clamp(pt.x+dragOffset.x,BOUNDS.xMin,BOUNDS.xMax);
+        selectedGroup.position.z=clamp(pt.z+dragOffset.z,BOUNDS.zMin,BOUNDS.zMax);
+        updateHandles();
+        canvas.style.cursor='grabbing';
+      } else if(isDraggingHandle&&selectedGroup){
+        const dx=e.clientX-resizeStartX;
+        const newS=clamp(resizeStartScale*(1+dx*0.004),0.25,3.5);
+        selectedGroup.scale.set(newS,newS,newS);
+        updateHandles();
+        canvas.style.cursor='ew-resize';
+      } else {
+        // Hover feedback in edit mode
+        raycaster.setFromCamera(mouse,camera);
+        let hitHandle=resHandle&&raycaster.intersectObject(resHandle).length>0;
+        if(hitHandle){canvas.style.cursor='ew-resize';}
+        else{
+          const hits=raycaster.intersectObjects(gardenMeshes());
+          const pg=hits.length>0?hits[0].object.userData.parentGroup:null;
+          canvas.style.cursor=(pg&&pg.userData.hoverable)?'grab':'default';
+        }
+      }
+    } else {
+      // View mode: orbit camera
+      if(isDragging){
+        sph.theta-=(e.clientX-prevMX)*0.005;
+        sph.phi=clamp(sph.phi+(e.clientY-prevMY)*0.005,0.18,1.42);
+        updateCam();
+      }
+      checkHover(e.clientX,e.clientY);
+    }
+    prevMX=e.clientX;prevMY=e.clientY;
+  });
+
+  // ── SCROLL ──
+  canvas.addEventListener('wheel',e=>{
+    if(editMode&&isDraggingObj){e.preventDefault();return;}
+    sph.radius=clamp(sph.radius+e.deltaY*0.018,4,20);
+    updateCam();e.preventDefault();
+  },{passive:false});
+
+  // ── TOUCH ──
+  canvas.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    if(e.touches.length===1){
+      prevMX=e.touches[0].clientX;prevMY=e.touches[0].clientY;prevPinchDist=0;
+      if(editMode){
+        updateMouse({clientX:prevMX,clientY:prevMY},canvas);
+        // tap to select
+        raycaster.setFromCamera(mouse,camera);
+        const hits=raycaster.intersectObjects(gardenMeshes());
+        if(hits.length>0){
+          const pg=hits[0].object.userData.parentGroup;
+          if(pg&&pg.userData.hoverable){selectObj(pg);isDraggingObj=true;const pt=groundPoint();dragOffset.set(pg.position.x-pt.x,0,pg.position.z-pt.z);return;}
+        }
+        deselect();
+      } else {isDragging=true;}
+    }
+    if(e.touches.length===2){isDragging=false;isDraggingObj=false;prevPinchDist=pinchDist(e);}
+  },{passive:false});
+  canvas.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    if(e.touches.length===1){
+      const tx=e.touches[0].clientX,ty=e.touches[0].clientY;
+      if(editMode&&isDraggingObj&&selectedGroup){
+        updateMouse({clientX:tx,clientY:ty},canvas);
+        const pt=groundPoint();
+        selectedGroup.position.x=clamp(pt.x+dragOffset.x,BOUNDS.xMin,BOUNDS.xMax);
+        selectedGroup.position.z=clamp(pt.z+dragOffset.z,BOUNDS.zMin,BOUNDS.zMax);
+        updateHandles();
+      } else if(!editMode&&isDragging){
+        sph.theta-=(tx-prevMX)*0.005;
+        sph.phi=clamp(sph.phi+(ty-prevMY)*0.005,0.18,1.42);
+        updateCam();
+      }
+      prevMX=tx;prevMY=ty;
+    }
+    if(e.touches.length===2){
+      const d=pinchDist(e);
+      if(prevPinchDist>0){sph.radius=clamp(sph.radius-(d-prevPinchDist)*0.03,4,20);updateCam();}
+      prevPinchDist=d;
+    }
+  },{passive:false});
+  canvas.addEventListener('touchend',()=>{isDragging=false;isDraggingObj=false;isDraggingHandle=false;prevPinchDist=0;});
+
+  // Escape key: deselect / exit edit mode
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(editMode&&selectedGroup)deselect();else if(editMode)toggleEditMode();}
+  });
+}
+
+function pinchDist(e){
+  const dx=e.touches[0].clientX-e.touches[1].clientX;
+  const dy=e.touches[0].clientY-e.touches[1].clientY;
+  return Math.sqrt(dx*dx+dy*dy);
+}
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+
+// ─── Hover / raycasting ───
+function checkHover(cx,cy){
+  if(!scene||!camera)return;
+  raycaster.setFromCamera(mouse,camera);
+  const meshes=[];
+  gardenGroups.forEach(g=>g.traverse(c=>{if(c.isMesh)meshes.push(c);}));
+  const hits=raycaster.intersectObjects(meshes);
+  if(hits.length>0){
+    const pg=hits[0].object.userData.parentGroup;
+    if(pg&&pg.userData.hoverable){
+      if(hoveredGroup!==pg){
+        if(hoveredGroup)resetHL(hoveredGroup);
+        highlightGL(pg);hoveredGroup=pg;
+      }
+      showTooltip(pg.userData,cx,cy);
+    } else {clearHover();}
+  } else {clearHover();}
+}
+function clearHover(){hideTooltip();if(hoveredGroup){resetHL(hoveredGroup);hoveredGroup=null;}}
+
+function highlightGL(g){if(g===selectedGroup)return;g.scale.set(1.06,1.06,1.06);}
+function resetHL(g){if(g===selectedGroup)return;g.scale.set(1,1,1);}
+
+function showTooltip(d,x,y){
+  document.getElementById('tt-name').textContent=d.name;
+  document.getElementById('tt-word').textContent='選んだ言葉：「'+d.word+'」';
+  document.getElementById('tt-func').textContent='🌱 '+d.fn;
+  const tt=document.getElementById('tooltip');
+  tt.style.display='block';
+  let lx=x+18, ly=y-14;
+  tt.style.left=lx+'px';tt.style.top=ly+'px';
+  // keep in viewport
+  requestAnimationFrame(()=>{
+    const r=tt.getBoundingClientRect();
+    if(r.right>window.innerWidth-10)tt.style.left=(x-r.width-14)+'px';
+    if(r.bottom>window.innerHeight-10)tt.style.top=(y-r.height-10)+'px';
+  });
+}
+function hideTooltip(){document.getElementById('tooltip').style.display='none';}
+
+// ═══════════════════════════════════════════════
+//  ANIMATION LOOP
+// ═══════════════════════════════════════════════
+function loop(){
+  animFrame=requestAnimationFrame(loop);
+  if(!renderer||!scene||!camera)return;
+  const t=Date.now()*0.001;
+  // Shishi arm oscillation
+  gardenGroups.forEach(g=>{
+    if(g.userData.type==='shishi'){
+      const arm=g.getObjectByName('shishiArm');
+      if(arm)arm.rotation.z=(Math.PI/2-0.28)+Math.sin(t*0.9)*0.18;
+    }
+  });
+  // Selection ring pulse (scale x/z only, keep y=1)
+  if(selRing){
+    const pulse=1+Math.sin(t*3.5)*0.05;
+    const base=selRing.scale.x/selRing.userData._prevPulse||selRing.scale.x;
+    selRing.userData._prevPulse=pulse;
+    // recalculate base from handle position to avoid drift
+    if(!isDraggingObj&&!isDraggingHandle&&selectedGroup){
+      const bb=new THREE.Box3().setFromObject(selectedGroup);
+      const sz=bb.getSize(new THREE.Vector3());
+      const r=Math.max(sz.x,sz.z)/2+0.22;
+      selRing.scale.set(r*pulse,1,r*pulse);
+    }
+  }
+  // Resize handle subtle glow (scale pulse)
+  if(resHandle){
+    resHandle.scale.setScalar(1+Math.sin(t*4.0)*0.08);
+  }
+  renderer.render(scene,camera);
+}
+</script>
+</body>
+</html>
